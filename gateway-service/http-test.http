@@ -1,0 +1,30 @@
+### Get All Products
+GET http://localhost:8080/api/products
+
+### Get One Product With Query
+GET http://localhost:8080/api/products/123?include=details
+
+### Create Product
+POST http://localhost:8080/api/products
+Content-Type: application/json
+
+{
+  "name": "Widget",
+  "price": 19.99
+}
+
+### Update Product
+PUT http://localhost:8080/api/products/123
+Content-Type: application/json
+
+{
+  "name": "Widget v2",
+  "price": 24.99
+}
+
+### Delete Product
+DELETE http://localhost:8080/api/products/123
+
+### Check Correlation Header Round-Trip
+GET http://localhost:8080/api/products
+X-Correlation-Id: test-corr

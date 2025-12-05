@@ -1,0 +1,102 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  tomcat:
+    connection-timeout: 10s
+    keep-alive-timeout: 30s
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: "${REDIS_HOST:localhost}"
+      port: "${REDIS_PORT:6379}"
+      timeout: 2s
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: products
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/products/**
+                - Method=GET,POST,PUT,DELETE,PATCH
+              filters:
+                - name: RewritePath
+                  args:
+                    regexp: "^/api/products(?<segment>/?.*)"
+                    replacement: "/products${segment}"
+                - name: CircuitBreaker
+                  args:
+                    id: productsCb                 # must match resilience4j instance
+                    fallbackUri: forward:/fallback/products
+            - id: keycloak-auth
+              uri: ${KEYCLOAK_BASE_URI:http://localhost:8082}
+              predicates:
+                - Path=/auth/**
+                - Method=GET,POST
+              filters:
+                - name: RewritePath
+                  args:
+                    regexp: "^/auth(?<segment>/?.*)"
+                    replacement: "${segment}"
+
+  security:
+    oauth2:
+      client:
+        registration:
+          gateway-service:
+            provider: keycloak
+            client-id: ${KEYCLOAK_GATEWAY_CLIENT_ID:gateway-service}
+            client-secret: ${KEYCLOAK_GATEWAY_CLIENT_SECRET:idFpPeiXCfIf4JJ5Qlh7Sb0mlLiNxmwt}
+            authorization-grant-type: client_credentials
+            scope: ${KEYCLOAK_GATEWAY_SCOPE:product.read}
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/api-gateway-realm}
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8082/realms/api-gateway-realm}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: INFO
+  pattern:
+    level: "%5p [corr:%X{X-Correlation-Id}]"
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      productsCb:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+  timelimiter:
+    instances:
+      productsCb:
+        timeoutDuration: 4s
