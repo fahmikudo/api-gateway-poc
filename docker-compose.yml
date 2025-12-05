@@ -7,7 +7,6 @@ services:
     networks:
       - gateway-net
 
-    # PostgreSQL for Keycloak (Different port to avoid conflict)
   gateway-keycloak-database:
     image: postgres:15-alpine
     container_name: gateway-keycloak-database
@@ -28,7 +27,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-    # Keycloak IAM
   gateway-keycloak:
     image: quay.io/keycloak/keycloak:23.0
     container_name: gateway-keycloak
@@ -102,9 +100,80 @@ services:
       - gateway-net
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    container_name: gateway-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--enable-feature=otlp-write-receiver"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: gateway-loki
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: gateway-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./loki/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: gateway-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_LOG_MODE: console
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      loki:
+        condition: service_started
+      prometheus:
+        condition: service_started
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
 volumes:
   keycloak-data:
   keycloak-db-data:
+  prometheus-data:
+  loki-data:
+  grafana-data:
 
 networks:
   gateway-net:

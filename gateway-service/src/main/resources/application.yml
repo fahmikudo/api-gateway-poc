@@ -73,6 +73,11 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+      instance: ${HOSTNAME:${spring.application.name}-local}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 logging:
   level:
@@ -80,6 +85,9 @@ logging:
     org.springframework.web: INFO
   pattern:
     level: "%5p [corr:%X{X-Correlation-Id}]"
+
+loki:
+  url: ${LOKI_URL:http://loki:3100}
 
 resilience4j:
   circuitbreaker:

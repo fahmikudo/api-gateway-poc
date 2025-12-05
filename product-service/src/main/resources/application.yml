@@ -10,6 +10,19 @@ spring:
       port: "${REDIS_PORT:6379}"
       timeout: 2s
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      instance: ${HOSTNAME:${spring.application.name}-local}
+
 logging:
   pattern:
     level: "%5p [corr:%X{X-Correlation-Id}]"
+
+loki:
+  url: ${LOKI_URL:http://loki:3100}

@@ -27,7 +27,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/actuator/health", "/actuator/info", "/auth/**").permitAll()
+                        .requestMatchers("/actuator/**", "/auth/**").permitAll()
                         .requestMatchers("/api/products/**").hasAuthority("SCOPE_product.read")
                         .anyRequest().authenticated()
                 )
