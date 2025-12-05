@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
   tomcat:
     connection-timeout: 10s
@@ -21,7 +21,7 @@ spring:
         webmvc:
           routes:
             - id: products
-              uri: http://localhost:8081
+              uri: ${PRODUCT_SERVICE_BASE_URI:http://localhost:8081}
               predicates:
                 - Path=/api/products/**
                 - Method=GET,POST,PUT,DELETE,PATCH

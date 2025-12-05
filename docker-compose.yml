@@ -60,6 +60,48 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: gateway-product-service
+    environment:
+      SERVER_PORT: 8081
+      REDIS_HOST: gateway-redis
+      REDIS_PORT: 6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - gateway-redis
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    environment:
+      SERVER_PORT: 8080
+      REDIS_HOST: gateway-redis
+      REDIS_PORT: 6379
+      PRODUCT_SERVICE_BASE_URI: http://product-service:8081
+      KEYCLOAK_BASE_URI: http://gateway-keycloak:8080
+      KEYCLOAK_ISSUER_URI: http://gateway-keycloak:8080/realms/api-gateway-realm
+    ports:
+      - "8080:8080"
+    depends_on:
+      product-service:
+        condition: service_started
+      gateway-keycloak:
+        condition: service_started
+      gateway-redis:
+        condition: service_started
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
 volumes:
   keycloak-data:
   keycloak-db-data:
